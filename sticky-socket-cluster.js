@@ -44,7 +44,7 @@ module.exports = function pool(options, callback)
 	options.session_hash = options.session_hash || session_hash_ip;
 	options.no_sockets = options.no_sockets || false;
 	options.start_timeout = options.start_timeout || 3000;
-	
+
 	if (cluster.isMaster) {
 		
 		debug_log('*************** MASTER: ' + require('util').inspect(options, false, null));
@@ -52,18 +52,14 @@ module.exports = function pool(options, callback)
 		var fork_worker = function(port)
 		{
 			var worker = cluster.fork({worker_port: port});
+			worker.port=port;
 		};
 
 		for (var n = 0; n < options.workers; n++) {
 			fork_worker(options.first_port + n);
 		}
 
-		cluster.on('exit', function(worker, code, signal) {
-			debug_error('Worker died (ID: ' + worker.id + ', PID: '
-					+ worker.process.pid + '), port: ' + worker.port);
-			
-			fork_worker(worker.port);
-		});
+		
 		
 		debug_log('init proxy...');
 		
@@ -71,10 +67,13 @@ module.exports = function pool(options, callback)
 			require('./proxy').init(options.workers, options.first_port, options.proxy_port, options.session_hash, options.no_sockets)
 		}, options.start_timeout);
 
+
 	} else if (cluster.isWorker) {
 
 		debug_log('*************** WORKER: ' + process.env.worker_port);
 
 		callback(process.env.worker_port);
 	}
+
+	return cluster;
 }
